@@ -58,6 +58,10 @@ asana:
     proxy:
         base_url: https://app.asana.com
     docs: https://developers.asana.com/reference
+ashby:
+    auth_mode: BASIC
+    proxy:
+        base_url: https://api.ashbyhq.com
 atlassian:
     auth_mode: OAUTH2
     authorization_url: https://auth.atlassian.com/authorize
@@ -284,6 +288,10 @@ gitlab:
     token_url: https://gitlab.com/oauth/token
     authorization_params:
         response_type: code
+gong:
+    auth_mode: BASIC
+    proxy:
+        base_url: https://api.gong.io
 google:
     auth_mode: OAUTH2
     authorization_url: https://accounts.google.com/o/oauth2/v2/auth
@@ -430,6 +438,10 @@ microsoft-teams:
     authorization_params:
         response_type: code
         response_mode: query
+mixpanel:
+    auth_mode: BASIC
+    proxy:
+        base_url: https://mixpanel.com
 miro:
     auth_mode: OAUTH2
     authorization_url: https://miro.com/oauth/authorize
@@ -801,6 +813,12 @@ wave-accounting:
     auth_mode: OAUTH2
     authorization_url: https://api.waveapps.com/oauth2/authorize
     token_url: https://api.waveapps.com/oauth2/token
+workable:
+    auth_mode: API_KEY
+    proxy:
+        headers:
+            Authorization: Bearer ${apiKey}
+        base_url: https://${connectionConfig.params.subdomain}.workable.com
 xero:
     auth_mode: OAUTH2
     authorization_url: https://login.xero.com/identity/connect/authorize
@@ -833,27 +851,6 @@ zendesk:
     auth_mode: OAUTH2
     authorization_url: https://${connectionConfig.params.subdomain}.zendesk.com/oauth/authorizations/new
     token_url: https://${connectionConfig.params.subdomain}.zendesk.com/oauth/tokens
-zoho-crm:
-    auth_mode: OAUTH2
-    authorization_url: https://accounts.zoho.com/oauth/v2/auth
-    token_url: https://accounts.zoho.com/oauth/v2/token
-    authorization_params:
-        response_type: code
-        access_type: offline
-zoho-desk:
-    auth_mode: OAUTH2
-    authorization_url: https://accounts.zoho.${connectionConfig.params.extension}/oauth/v2/auth
-    token_url: https://accounts.zoho.${connectionConfig.params.extension}/oauth/v2/token
-    authorization_params:
-        response_type: code
-        access_type: offline
-zoho-invoice:
-    auth_mode: OAUTH2
-    authorization_url: https://accounts.zoho.com/oauth/v2/auth
-    token_url: https://accounts.zoho.com/oauth/v2/token
-    authorization_params:
-        prompt: consent
-        access_type: offline
 zenefits:
     auth_mode: OAUTH2
     authorization_url: https://secure.zenefits.com/oauth2/platform-authorize
@@ -864,13 +861,25 @@ zenefits:
         grant_type: authorization_code
     refresh_params:
         grant_type: refresh_token
-zoho-books:
+zoho:
     auth_mode: OAUTH2
-    authorization_url: https://accounts.zoho.com/oauth/v2/auth
-    token_url: https://accounts.zoho.com/oauth/v2/token
+    authorization_url: https://accounts.zoho.${connectionConfig.params.extension}/oauth/v2/auth
+    token_url: https://accounts.zoho.${connectionConfig.params.extension}/oauth/v2/token
     authorization_params:
         prompt: consent
         access_type: offline
+    proxy:
+        base_url: https://www.zohoapis.${connectionConfig.params.extension}
+zoho-books:
+    alias: zoho
+zoho-crm:
+    alias: zoho
+zoho-desk:
+    alias: zoho
+zoho-inventory:
+    alias: zoho
+zoho-invoice:
+    alias: zoho
 zoom:
     auth_mode: OAUTH2
     authorization_url: https://zoom.us/oauth/authorize

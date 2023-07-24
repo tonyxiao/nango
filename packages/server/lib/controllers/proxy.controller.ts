@@ -27,7 +27,9 @@ import {
     getAccount,
     interpolateIfNeeded,
     AuthModes,
-    OAuth2Credentials
+    OAuth2Credentials,
+    connectionCopyWithParsedConnectionConfig,
+    mapProxyBaseUrlInterpolationFormat
 } from '@nangohq/shared';
 import type { ProxyBodyConfiguration } from '../models.js';
 
@@ -219,7 +221,7 @@ class ProxyController {
                     level: 'debug',
                     activity_log_id: activityLogId as number,
                     timestamp: Date.now(),
-                    content: `Proxy: API call configuration constructed successfully with the base api url set to ${template.proxy.base_url}`
+                    content: `Proxy: API call configuration constructed successfully with the base api url set to ${baseUrlOverride || template.proxy.base_url}`
                 });
             }
 
@@ -639,7 +641,10 @@ class ProxyController {
             endpoint += `${apiKeyProp}=${token.apiKey}`;
         }
 
-        const fullEndpoint = interpolateIfNeeded(`${base}/${endpoint}`, connection as unknown as Record<string, string>);
+        const fullEndpoint = interpolateIfNeeded(
+            `${mapProxyBaseUrlInterpolationFormat(base)}/${endpoint}`,
+            connectionCopyWithParsedConnectionConfig(connection) as unknown as Record<string, string>
+        );
 
         return fullEndpoint;
     }
