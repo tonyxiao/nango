@@ -9,12 +9,8 @@ interface ProxyConfig {
     isDryRun?: boolean;
     retries?: number;
     baseUrlOverride?: string;
-
 }
 
-export class ProxyService {
-}
+export class ProxyService {}
 
-export class ProxyCaller {
-
-}
+export class ProxyCaller {}
