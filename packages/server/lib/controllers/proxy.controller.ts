@@ -24,6 +24,7 @@ import {
     connectionService,
     environmentService,
     getEnvironmentId,
+    getAccount,
     interpolateIfNeeded,
     AuthModes,
     OAuth2Credentials
@@ -53,6 +54,7 @@ class ProxyController {
             const isDryRun = req.get('Nango-Is-Dry-Run') as string;
             const existingActivityLogId = req.get('Nango-Activity-Log-Id') as number | string;
             const environment_id = getEnvironmentId(res);
+            const accountId = getAccount(res);
 
             const logAction: LogAction = isSync ? 'sync' : ('proxy' as LogAction);
 
@@ -109,7 +111,8 @@ class ProxyController {
             }
 
             const connection = await connectionService.getConnectionCredentials(
-                res,
+                accountId,
+                environment_id,
                 connectionId,
                 providerConfigKey,
                 activityLogId as number,

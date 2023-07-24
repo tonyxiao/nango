@@ -285,24 +285,20 @@ class ConnectionService {
     }
 
     public async getConnectionCredentials(
-        res: Response,
+        accountId: number,
+        environmentId: number,
         connectionId: string,
         providerConfigKey: string,
         activityLogId?: number | null,
         action?: LogAction,
         instantRefresh = false
     ) {
-        const accountId = getAccount(res);
-        const environmentId = getEnvironmentId(res);
-
         if (connectionId === null) {
-            errorManager.errRes(res, 'missing_connection');
-            return;
+            throw new NangoError('missing_connection');
         }
 
         if (providerConfigKey === null) {
-            errorManager.errRes(res, 'missing_provider_config');
-            return;
+            throw new NangoError('missing_provider_config');
         }
 
         const connection: Connection | null = await connectionService.getConnection(connectionId, providerConfigKey, environmentId);
@@ -315,8 +311,7 @@ class ConnectionService {
                 timestamp: Date.now()
             });
 
-            errorManager.errRes(res, 'unknown_connection');
-            throw new Error(`Connection not found`);
+            throw new NangoError('unknown_connection');
         }
 
         const config: ProviderConfig | null = await configService.getProviderConfig(connection?.provider_config_key as string, environmentId);
@@ -333,8 +328,7 @@ class ConnectionService {
                 timestamp: Date.now()
             });
 
-            errorManager.errRes(res, 'unknown_provider_config');
-            throw new Error(`Provider config not found`);
+            throw new NangoError('unknown_provider_config');
         }
 
         const template: ProviderTemplate | undefined = configService.getTemplate(config?.provider as string);

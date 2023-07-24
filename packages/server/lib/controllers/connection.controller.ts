@@ -206,6 +206,7 @@ class ConnectionController {
     async getConnectionCreds(req: Request, res: Response, next: NextFunction) {
         try {
             const environmentId = getEnvironmentId(res);
+            const accountId = getAccount(res);
             const connectionId = req.params['connectionId'] as string;
             const providerConfigKey = req.query['provider_config_key'] as string;
             const returnRefreshToken = req.query['refresh_token'] === 'true';
@@ -233,7 +234,15 @@ class ConnectionController {
                 activityLogId = await createActivityLog(log);
             }
 
-            const connection = await connectionService.getConnectionCredentials(res, connectionId, providerConfigKey, activityLogId, action, instantRefresh);
+            const connection = await connectionService.getConnectionCredentials(
+                accountId,
+                environmentId,
+                connectionId,
+                providerConfigKey,
+                activityLogId,
+                action,
+                instantRefresh
+            );
 
             if (!isSync && !isDryRun) {
                 await createActivityLogMessageAndEnd({

@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig } from 'axios';
+import axios, { AxiosRequestConfig, AxiosStatic } from 'axios';
 
 import {
     AuthModes,
@@ -23,6 +23,7 @@ interface NangoProps {
     isSync?: boolean;
     dryRun?: boolean;
     activityLogId?: number;
+    proxyCaller?: AxiosStatic;
 }
 
 interface CreateConnectionOAuth1 extends OAuth1Credentials {
@@ -75,10 +76,12 @@ export class Nango {
     isSync = false;
     dryRun = false;
     activityLogId?: number;
+    proxyCaller: AxiosStatic;
 
     constructor(config: NangoProps) {
         config.host = config.host || prodHost;
         this.serverUrl = config.host;
+        this.proxyCaller = axios;
 
         if (this.serverUrl.slice(-1) === '/') {
             this.serverUrl = this.serverUrl.slice(0, -1);
@@ -108,6 +111,10 @@ export class Nango {
 
         if (config.activityLogId) {
             this.activityLogId = config.activityLogId;
+        }
+
+        if (config.proxyCaller) {
+            this.proxyCaller = config.proxyCaller;
         }
     }
 
@@ -219,15 +226,15 @@ export class Nango {
         }
 
         if (method?.toUpperCase() === 'POST') {
-            return axios.post(url, config.data, options);
+            return this.proxyCaller.post(url, config.data, options);
         } else if (method?.toUpperCase() === 'PATCH') {
-            return axios.patch(url, config.data, options);
+            return this.proxyCaller.patch(url, config.data, options);
         } else if (method?.toUpperCase() === 'PUT') {
-            return axios.put(url, config.data, options);
+            return this.proxyCaller.put(url, config.data, options);
         } else if (method?.toUpperCase() === 'DELETE') {
-            return axios.delete(url, options);
+            return this.proxyCaller.delete(url, options);
         } else {
-            return axios.get(url, options);
+            return this.proxyCaller.get(url, options);
         }
     }
 
