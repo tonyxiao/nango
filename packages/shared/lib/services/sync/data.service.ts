@@ -13,18 +13,20 @@ export async function upsert(
     uniqueKey: string,
     nangoConnectionId: number,
     model: string,
-    activityLogId: number
+    activityLogId: number,
+    softDelete = false
 ): Promise<UpsertResponse> {
     const responseWithoutDuplicates = await removeDuplicateKey(response, uniqueKey, activityLogId, model);
-    const addedKeys = await getAddedKeys(responseWithoutDuplicates, dbTable, uniqueKey, nangoConnectionId, model);
-    const updatedKeys = await getUpdatedKeys(responseWithoutDuplicates, dbTable, uniqueKey, nangoConnectionId, model);
 
-    if (responseWithoutDuplicates.length === 0) {
+    if (!responseWithoutDuplicates || responseWithoutDuplicates.length === 0) {
         return {
             success: false,
-            error: 'There are no records to upsert because there were no records that were not duplicates to insert'
+            error: `There are no records to upsert because there were no records that were not duplicates to insert, but there were ${response.length} records received for the "${model}" model.`
         };
     }
+
+    const addedKeys = await getAddedKeys(responseWithoutDuplicates, dbTable, uniqueKey, nangoConnectionId, model);
+    const updatedKeys = await getUpdatedKeys(responseWithoutDuplicates, dbTable, uniqueKey, nangoConnectionId, model);
 
     try {
         const results = await schema()
@@ -36,6 +38,19 @@ export async function upsert(
 
         const affectedInternalIds = results.map((tuple) => tuple.id) as string[];
         const affectedExternalIds = results.map((tuple) => tuple.external_id) as string[];
+
+        if (softDelete) {
+            return {
+                success: true,
+                summary: {
+                    deletedKeys: [...addedKeys, ...updatedKeys],
+                    addedKeys: [],
+                    updatedKeys: [],
+                    affectedInternalIds,
+                    affectedExternalIds
+                }
+            };
+        }
 
         return {
             success: true,
@@ -49,7 +64,7 @@ export async function upsert(
     } catch (error: any) {
         let errorMessage = `Failed to upsert records to table ${dbTable}.\n`;
         errorMessage += `Model: ${model}, Unique Key: ${uniqueKey}, Nango Connection ID: ${nangoConnectionId}.\n`;
-        errorMessage += `Attempted to insert/update: ${responseWithoutDuplicates.length} records\n`;
+        errorMessage += `Attempted to insert/update/delete: ${responseWithoutDuplicates.length} records\n`;
 
         if ('code' in error) errorMessage += `Error code: ${error.code}.\n`;
         if ('detail' in error) errorMessage += `Detail: ${error.detail}.\n`;
@@ -64,21 +79,24 @@ export async function upsert(
 }
 
 export async function removeDuplicateKey(response: DataRecord[], uniqueKey: string, activityLogId: number, model: string): Promise<DataRecord[]> {
-    const { isUnique, nonUniqueKey } = verifyUniqueKeysAreUnique(response, uniqueKey);
+    const { nonUniqueKeys } = verifyUniqueKeysAreUnique(response, uniqueKey);
 
-    if (!isUnique) {
+    for (const nonUniqueKey of nonUniqueKeys) {
         await createActivityLogMessage({
             level: 'error',
             activity_log_id: activityLogId,
-            content: `There was a duplicate key found: ${nonUniqueKey}. This record will not be inserted to the model ${model}.`,
+            content: `There was a duplicate key found: ${nonUniqueKey}. This record will be ignore in relation to the model ${model}.`,
             timestamp: Date.now()
         });
-
-        const uniqueResponse = response.filter((item) => item[uniqueKey] !== nonUniqueKey);
-        return uniqueResponse;
     }
 
-    return response;
+    const seen = new Set();
+    const uniqueResponse = response.filter((item) => {
+        const key = item[uniqueKey];
+        return seen.has(key) ? false : seen.add(key);
+    });
+
+    return uniqueResponse;
 }
 
 /**

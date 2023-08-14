@@ -1,17 +1,21 @@
 import type { AuthCredentials, ApiKeyCredentials, BasicApiCredentials } from './Auth.js';
+import type { TimestampsAndDeleted } from './Generic.js';
 
-export interface BaseConnection {
+export interface Metadata {
+    fieldMapping: Record<string, string>;
+    [key: string]: string | Record<string, string>;
+}
+
+export interface BaseConnection extends TimestampsAndDeleted {
     id?: number;
-    created_at?: string;
-    updated_at?: string;
     provider_config_key: string;
     connection_id: string;
     connection_config: Record<string, string>;
     environment_id: number;
-    metadata?: Record<string, string>;
+    metadata?: Metadata | null;
     credentials_iv?: string | null;
     credentials_tag?: string | null;
-    field_mappings?: Record<string, string>;
+    last_fetched_at?: Date | null;
 }
 
 export interface StoredConnection extends BaseConnection {
@@ -41,4 +45,12 @@ export interface NangoConnection {
 
     // TODO legacy while the migration is in progress
     account_id?: number;
+}
+
+export interface ConnectionList {
+    id: number;
+    connectionId: number;
+    providerConfigKey: string;
+    provider: string;
+    creationDate: string;
 }

@@ -82,9 +82,9 @@ We could not retrieve and/or refresh your access token due to the following erro
     const deleteButtonClicked = async () => {
         if (!connectionId || !providerConfigKey) return;
 
-        let res = await deleteConnectionAPI(connectionId, providerConfigKey);
+        const res = await deleteConnectionAPI(connectionId, providerConfigKey);
 
-        if (res?.status === 200) {
+        if (res?.status === 204) {
             toast.success('Connection deleted!', { position: toast.POSITION.BOTTOM_CENTER });
             navigate('/connections', { replace: true });
         }
@@ -174,7 +174,7 @@ We could not retrieve and/or refresh your access token due to the following erro
     const runningBubbleStyles = 'inline-flex justify-center items-center rounded-full py-1 px-4 bg-orange-500 bg-opacity-20';
 
     return (
-        <DashboardLayout selectedItem={LeftNavBarItems.Connections} hideEnvironmentSelect>
+        <DashboardLayout selectedItem={LeftNavBarItems.Connections}>
             <div className="mx-auto w-largebox">
                 <div className="mx-16 pb-40">
                     <div className="flex mt-16 mb-6 justify-between">
@@ -373,18 +373,18 @@ We could not retrieve and/or refresh your access token due to the following erro
                                                 </div>
                                             </>
                                         )}
+                                        <div>
+                                            <div className="mx-8 mt-8">
+                                                <label htmlFor="email" className="text-text-light-gray block text-sm font-semibold">
+                                                    Connection Configuration
+                                                </label>
+                                                <Prism language="json" colorScheme="dark">
+                                                    {JSON.stringify(connection.connectionConfig, null, 4) || '{}'}
+                                                </Prism>
+                                            </div>
+                                        </div>
                                         {(connection.oauthType === AuthModes.OAuth1 || connection.oauthType === AuthModes.OAuth2) && (
                                             <>
-                                                <div>
-                                                    <div className="mx-8 mt-8">
-                                                        <label htmlFor="email" className="text-text-light-gray block text-sm font-semibold">
-                                                            Connection Configuration
-                                                        </label>
-                                                        <Prism language="json" colorScheme="dark">
-                                                            {JSON.stringify(connection.connectionConfig, null, 4) || '{}'}
-                                                        </Prism>
-                                                    </div>
-                                                </div>
                                                 <div>
                                                     <div className="mx-8 mt-8">
                                                         <label htmlFor="email" className="text-text-light-gray block text-sm font-semibold">

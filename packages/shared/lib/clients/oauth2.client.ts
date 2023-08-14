@@ -14,15 +14,20 @@ import {
 } from '../models/index.js';
 import { AuthorizationCode, AccessToken } from 'simple-oauth2';
 import connectionsManager from '../services/connection.service.js';
+import type { ServiceResponse } from '../models/Generic.js';
+import { LogActionEnum } from '../models/Activity.js';
 import { interpolateString } from '../utils/utils.js';
 import Boom from '@hapi/boom';
 import { NangoError } from '../utils/error.js';
+import errorManager, { ErrorSourceEnum } from '../utils/error.manager.js';
 
 // Simple OAuth 2 does what it says on the tin: A simple, no-frills client for OAuth 2 that implements the 3 most common grant_types.
 // Well maintained, I like :-)
 export function getSimpleOAuth2ClientConfig(providerConfig: ProviderConfig, template: ProviderTemplate, connectionConfig: Record<string, string>) {
-    const tokenUrl = new URL(interpolateString(template.token_url, connectionConfig));
-    const authorizeUrl = new URL(interpolateString(template.authorization_url, connectionConfig));
+    const strippedTokenUrl = template.token_url.replace(/connectionConfig\./g, '');
+    const tokenUrl = new URL(interpolateString(strippedTokenUrl, connectionConfig));
+    const strippedAuthorizeUrl = template.authorization_url.replace(/connectionConfig\./g, '');
+    const authorizeUrl = new URL(interpolateString(strippedAuthorizeUrl, connectionConfig));
     const headers = { 'User-Agent': 'Nango' };
 
     const authConfig = template as ProviderTemplateOAuth2;
@@ -47,7 +52,11 @@ export function getSimpleOAuth2ClientConfig(providerConfig: ProviderConfig, temp
     };
 }
 
-export async function getFreshOAuth2Credentials(connection: Connection, config: ProviderConfig, template: ProviderTemplateOAuth2): Promise<OAuth2Credentials> {
+export async function getFreshOAuth2Credentials(
+    connection: Connection,
+    config: ProviderConfig,
+    template: ProviderTemplateOAuth2
+): Promise<ServiceResponse<OAuth2Credentials>> {
     const credentials = connection.credentials as OAuth2Credentials;
     const simpleOAuth2ClientConfig = getSimpleOAuth2ClientConfig(config, template, connection.connection_config);
     if (template.token_request_auth_method === 'basic') {
@@ -89,7 +98,18 @@ export async function getFreshOAuth2Credentials(connection: Connection, config: 
             nangoErr = new NangoError(`refresh_token_external_error`, { message: errorPayload });
         }
 
-        throw nangoErr;
+        await errorManager.report(nangoErr.message, {
+            environmentId: connection.environment_id as number,
+            source: ErrorSourceEnum.CUSTOMER,
+            operation: LogActionEnum.AUTH,
+            metadata: {
+                connection,
+                config,
+                template
+            }
+        });
+
+        return { success: false, error: nangoErr, response: null };
     }
 
     let newCredentials: OAuth2Credentials;
@@ -100,8 +120,19 @@ export async function getFreshOAuth2Credentials(connection: Connection, config: 
             newCredentials.refresh_token = credentials.refresh_token;
         }
 
-        return newCredentials;
+        return { success: true, error: null, response: newCredentials };
     } catch (e) {
-        throw new NangoError(`refresh_token_parsing_error`);
+        const error = new NangoError(`refresh_token_parsing_error`);
+        await errorManager.report(error.message, {
+            environmentId: connection.environment_id as number,
+            source: ErrorSourceEnum.CUSTOMER,
+            operation: LogActionEnum.AUTH,
+            metadata: {
+                connection,
+                config,
+                template
+            }
+        });
+        return { success: false, error, response: null };
     }
 }

@@ -22,10 +22,10 @@ import TagsInput from '../components/ui/input/TagsInput';
 import { AuthModes } from '../types';
 
 interface Integration {
-    uniqueKey: string;
+    unique_key: string;
     provider: string;
-    clientId: string;
-    clientSecret: string;
+    client_id: string;
+    client_secret: string;
     scopes: string;
 }
 
@@ -63,7 +63,7 @@ export default function IntegrationCreate() {
                     const data = await res.json();
                     setIntegration(data['config']);
                     const currentIntegration = data['config'];
-                    if (currentIntegration.clientId === null && currentIntegration.clientSecret === null && currentIntegration.scopes === '') {
+                    if (currentIntegration.client_id === null && currentIntegration.client_secret === null) {
                         // set to either api type to not have empty credentials fields
                         setAuthMode(AuthModes.Basic);
                     }
@@ -164,7 +164,7 @@ export default function IntegrationCreate() {
 
         let res = await deleteIntegrationAPI(providerConfigKey);
 
-        if (res?.status === 200) {
+        if (res?.status === 204) {
             toast.success('Integration deleted!', { position: toast.POSITION.BOTTOM_CENTER });
             navigate('/integrations', { replace: true });
         }
@@ -179,7 +179,7 @@ export default function IntegrationCreate() {
     }
 
     return (
-        <DashboardLayout selectedItem={LeftNavBarItems.Integrations} hideEnvironmentSelect>
+        <DashboardLayout selectedItem={LeftNavBarItems.Integrations}>
             {deleteAlertState && (
                 <AlertOverLay
                     message={'Deleting an integration will also permanently delete all associated connections. Are you sure you want to delete it?'}
@@ -275,7 +275,7 @@ export default function IntegrationCreate() {
                             {(authMode === AuthModes.Basic || authMode === AuthModes.ApiKey) && !providerConfigKey && (
                                 <div className="flex items-center p-2 bg-gray-800 outline outline-blue-900 rounded">
                                     <Info className="h-8 mr-3 stroke-blue-900"></Info>
-                                    <span>The "{selectedProvider}" integration provider uses {authMode === AuthModes.Basic ? 'basic auth' : 'API Keys'} for authentication (<a href="https://docs.nango.dev" rel="noreferrer" target="_blank">docs</a>).</span>
+                                    <span>The "{selectedProvider}" integration provider uses {authMode === AuthModes.Basic ? 'basic auth' : 'API Keys'} for authentication (<a href="https://docs.nango.dev/guides/oauth#connection-configuration" className="text-text-blue hover:text-text-light-blue" rel="noreferrer" target="_blank">docs</a>).</span>
                                 </div>
                             )}
 
@@ -303,7 +303,7 @@ export default function IntegrationCreate() {
                                                 id="client_id"
                                                 name="client_id"
                                                 type="text"
-                                                defaultValue={integration ? integration.clientId : ''}
+                                                defaultValue={integration ? integration.client_id : ''}
                                                 required
                                                 minLength={1}
                                                 className="border-border-gray bg-bg-black text-text-light-gray focus:border-white focus:ring-white block h-11 w-full appearance-none rounded-md border px-3 py-2 text-base placeholder-gray-400 shadow-sm focus:outline-none"
@@ -333,7 +333,7 @@ export default function IntegrationCreate() {
                                                 copy={true}
                                                 id="client_secret"
                                                 name="client_secret"
-                                                defaultValue={integration ? integration.clientSecret : ''}
+                                                defaultValue={integration ? integration.client_secret : ''}
                                                 required
                                             />
                                         </div>

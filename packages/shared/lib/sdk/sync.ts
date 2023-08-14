@@ -2,7 +2,10 @@ import { getSyncConfigByJobId } from '../services/sync/config.service.js';
 import { upsert } from '../services/sync/data.service.js';
 import { formatDataRecords } from '../services/sync/data-records.service.js';
 import { createActivityLogMessage } from '../services/activity/activity.service.js';
+import { setLastSyncDate } from '../services/sync/sync.service.js';
 import { updateSyncJobResult } from '../services/sync/job.service.js';
+import errorManager, { ErrorSourceEnum } from '../utils/error.manager.js';
+import { LogActionEnum } from '../models/Activity.js';
 
 import { Nango } from '@nangohq/node';
 
@@ -49,6 +52,11 @@ interface AxiosResponse<T = any, D = any> {
     headers: any;
     config: D;
     request?: any;
+}
+
+interface DataResponse {
+    id?: string;
+    [index: string]: unknown | undefined | string | number | boolean | Record<string, string | boolean | number | unknown>;
 }
 
 interface ProxyConfiguration {
@@ -104,6 +112,11 @@ interface OAuth1Credentials extends CredentialsCommon {
 
 type AuthCredentials = OAuth2Credentials | OAuth1Credentials | BasicApiCredentials | ApiKeyCredentials;
 
+interface Metadata {
+    fieldMapping?: Record<string, string>;
+    [key: string]: string | Record<string, string>;
+}
+
 interface Connection {
     id?: number;
     created_at?: string;
@@ -112,10 +125,9 @@ interface Connection {
     connection_id: string;
     connection_config: Record<string, string>;
     environment_id: number;
-    metadata: Record<string, string> | null;
+    metadata: Metadata | null;
     credentials_iv?: string | null;
     credentials_tag?: string | null;
-    field_mappings?: Record<string, string>;
     credentials: AuthCredentials;
 }
 
@@ -123,6 +135,7 @@ interface NangoProps {
     host?: string;
     secretKey: string;
     connectionId?: string;
+    environmentId?: number;
     activityLogId?: number;
     providerConfigKey?: string;
     lastSyncDate?: Date;
@@ -142,6 +155,7 @@ export class NangoSync {
     lastSyncDate?: Date;
     syncId?: string;
     nangoConnectionId?: number;
+    environmentId?: number;
     syncJobId?: number;
     dryRun?: boolean;
 
@@ -181,72 +195,126 @@ export class NangoSync {
         if (config.providerConfigKey) {
             this.providerConfigKey = config.providerConfigKey;
         }
+
+        if (config.environmentId) {
+            this.environmentId = config.environmentId;
+        }
+
+        if (config.lastSyncDate) {
+            this.lastSyncDate = config.lastSyncDate;
+        }
     }
 
-    public setLastSyncDate(date: Date) {
-        this.lastSyncDate = date;
+    /**
+     * Set Sync Last Sync Date
+     * @desc permanently set the last sync date for the sync
+     * to be used for the next sync run
+     */
+    public async setLastSyncDate(date: Date): Promise<boolean> {
+        if (date.toString() === 'Invalid Date') {
+            throw new Error('Invalid Date');
+        }
+        const result = await setLastSyncDate(this.syncId as string, date);
+
+        return result;
     }
 
-    public async proxy(config: ProxyConfiguration): Promise<AxiosResponse<any, any>> {
+    public async proxy<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>> {
         return this.nango.proxy(config);
     }
 
-    public async getConnection(): Promise<Connection> {
-        return this.nango.getConnection(this.providerConfigKey as string, this.connectionId as string);
-    }
-
-    public async setFieldMapping(
-        fieldMapping: Record<string, string>,
-        optionalProviderConfigKey?: string,
-        optionalConnectionId?: string
-    ): Promise<AxiosResponse<any, any>> {
-        return this.nango.setFieldMapping(fieldMapping, optionalProviderConfigKey, optionalConnectionId);
-    }
-
-    public async getFieldMapping(optionalProviderConfigKey?: string, optionalConnectionId?: string): Promise<AxiosResponse<any, any>> {
-        return this.nango.getFieldMapping(optionalProviderConfigKey, optionalConnectionId);
-    }
-
-    public async get(config: ProxyConfiguration): Promise<AxiosResponse<any, any>> {
+    public async get<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>> {
         return this.proxy({
             ...config,
             method: 'GET'
         });
     }
 
-    public async post(config: ProxyConfiguration): Promise<AxiosResponse<any, any>> {
+    public async post<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>> {
         return this.proxy({
             ...config,
             method: 'POST'
         });
     }
 
-    public async patch(config: ProxyConfiguration): Promise<AxiosResponse<any, any>> {
+    public async patch<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>> {
         return this.proxy({
             ...config,
             method: 'PATCH'
         });
     }
 
-    public async delete(config: ProxyConfiguration): Promise<AxiosResponse<any, any>> {
+    public async delete<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>> {
         return this.proxy({
             ...config,
             method: 'DELETE'
         });
     }
 
-    public async batchSend(results: any[], model: string): Promise<boolean | null> {
-        if (this.dryRun) {
-            console.log('A batch send call would send the following data:');
-            console.log(JSON.stringify(results, null, 2));
-            return null;
+    public async getConnection(): Promise<Connection> {
+        return this.nango.getConnection(this.providerConfigKey as string, this.connectionId as string);
+    }
+
+    public async setMetadata(metadata: Record<string, string>): Promise<AxiosResponse<void>> {
+        return this.nango.setMetadata(this.providerConfigKey as string, this.connectionId as string, metadata);
+    }
+
+    public async setFieldMapping(fieldMapping: Record<string, string>): Promise<AxiosResponse<void>> {
+        console.warn('setFieldMapping is deprecated. Please use setMetadata instead.');
+        return this.nango.setMetadata(this.providerConfigKey as string, this.connectionId as string, fieldMapping);
+    }
+
+    public async getMetadata<T = Metadata>(): Promise<T> {
+        return this.nango.getMetadata(this.providerConfigKey as string, this.connectionId as string);
+    }
+
+    public async getFieldMapping(): Promise<Metadata> {
+        console.warn('getFieldMapping is deprecated. Please use getMetadata instead.');
+        const metadata = await this.nango.getMetadata(this.providerConfigKey as string, this.connectionId as string);
+        return (metadata.fieldMapping as Metadata) || {};
+    }
+
+    public async batchSend<T = any>(results: T[], model: string): Promise<boolean | null> {
+        console.warn('batchSend will be deprecated in future versions. Please use batchSave instead.');
+        return this.batchSave(results, model);
+    }
+
+    public async batchSave<T = any>(results: T[], model: string): Promise<boolean | null> {
+        if (!results || results.length === 0) {
+            if (this.dryRun) {
+                console.log('batchSave received an empty array. No records to send.');
+            }
+            return true;
         }
 
         if (!this.nangoConnectionId || !this.syncId || !this.activityLogId || !this.syncJobId) {
             throw new Error('Nango Connection Id, Sync Id, Activity Log Id and Sync Job Id are all required');
         }
 
-        const formattedResults = formatDataRecords(results, this.nangoConnectionId as number, model, this.syncId as string, this.syncJobId);
+        const {
+            success,
+            error,
+            response: formattedResults
+        } = formatDataRecords(results as unknown as DataResponse[], this.nangoConnectionId as number, model, this.syncId as string, this.syncJobId);
+
+        if (!success || formattedResults === null) {
+            if (!this.dryRun) {
+                await createActivityLogMessage({
+                    level: 'error',
+                    activity_log_id: this.activityLogId as number,
+                    content: `There was an issue with the batch save. ${error?.message}`,
+                    timestamp: Date.now()
+                });
+            }
+
+            throw error;
+        }
+
+        if (this.dryRun) {
+            console.log('A batch save call would save following data:');
+            console.log(JSON.stringify(results, null, 2));
+            return null;
+        }
 
         const syncConfig = await getSyncConfigByJobId(this.syncJobId as number);
 
@@ -265,17 +333,22 @@ export class NangoSync {
 
         if (responseResults.success) {
             const { summary } = responseResults;
-            const updatedResults = {
+            const updatedResults: Record<string, { added: number; updated: number; deleted?: number }> = {
                 [model]: {
                     added: summary?.addedKeys.length as number,
-                    updated: summary?.updatedKeys.length as number
+                    updated: summary?.updatedKeys.length as number,
+                    deleted: summary?.deletedKeys?.length as number
                 }
             };
+
+            if (summary?.deletedKeys?.length === 0) {
+                delete updatedResults[model]?.deleted;
+            }
 
             await createActivityLogMessage({
                 level: 'info',
                 activity_log_id: this.activityLogId as number,
-                content: `Batch send was a success and resulted in ${JSON.stringify(updatedResults, null, 2)}`,
+                content: `Batch save was a success and resulted in ${JSON.stringify(updatedResults, null, 2)}`,
                 timestamp: Date.now()
             });
 
@@ -283,14 +356,133 @@ export class NangoSync {
 
             return true;
         } else {
+            const content = `There was an issue with the batch save. ${responseResults?.error}`;
+
+            if (!this.dryRun) {
+                await createActivityLogMessage({
+                    level: 'error',
+                    activity_log_id: this.activityLogId as number,
+                    content,
+                    timestamp: Date.now()
+                });
+
+                await errorManager.report(content, {
+                    environmentId: this.environmentId as number,
+                    source: ErrorSourceEnum.CUSTOMER,
+                    operation: LogActionEnum.SYNC,
+                    metadata: {
+                        connectionId: this.connectionId,
+                        providerConfigKey: this.providerConfigKey,
+                        syncId: this.syncId,
+                        nanogConnectionId: this.nangoConnectionId,
+                        syncJobId: this.syncJobId
+                    }
+                });
+            }
+
+            throw new Error(responseResults?.error);
+        }
+    }
+
+    public async batchDelete<T = any>(results: T[], model: string): Promise<boolean | null> {
+        if (!results || results.length === 0) {
+            if (this.dryRun) {
+                console.log('batchDelete received an empty array. No records to delete.');
+            }
+            return true;
+        }
+
+        if (!this.nangoConnectionId || !this.syncId || !this.activityLogId || !this.syncJobId) {
+            throw new Error('Nango Connection Id, Sync Id, Activity Log Id and Sync Job Id are all required');
+        }
+
+        const {
+            success,
+            error,
+            response: formattedResults
+        } = formatDataRecords(results as unknown as DataResponse[], this.nangoConnectionId as number, model, this.syncId as string, this.syncJobId, true);
+
+        if (!success || formattedResults === null) {
+            if (!this.dryRun) {
+                await createActivityLogMessage({
+                    level: 'error',
+                    activity_log_id: this.activityLogId as number,
+                    content: `There was an issue with the batch delete. ${error?.message}`,
+                    timestamp: Date.now()
+                });
+            }
+
+            throw error;
+        }
+
+        if (this.dryRun) {
+            console.log('A batch delete call would delete the following data:');
+            console.log(JSON.stringify(results, null, 2));
+            return null;
+        }
+
+        const syncConfig = await getSyncConfigByJobId(this.syncJobId as number);
+
+        if (syncConfig && !syncConfig?.models.includes(model)) {
+            throw new Error(`The model: ${model} is not included in the declared sync models: ${syncConfig.models}.`);
+        }
+
+        const responseResults = await upsert(
+            formattedResults,
+            '_nango_sync_data_records',
+            'external_id',
+            this.nangoConnectionId as number,
+            model,
+            this.activityLogId as number,
+            true
+        );
+
+        if (responseResults.success) {
+            const { summary } = responseResults;
+            const updatedResults = {
+                [model]: {
+                    added: summary?.addedKeys.length as number,
+                    updated: summary?.updatedKeys.length as number,
+                    deleted: summary?.deletedKeys?.length as number
+                }
+            };
+
             await createActivityLogMessage({
-                level: 'error',
+                level: 'info',
                 activity_log_id: this.activityLogId as number,
-                content: `There was an issue with the batch send. ${responseResults?.error}`,
+                content: `Batch delete was a success and resulted in ${JSON.stringify(updatedResults, null, 2)}`,
                 timestamp: Date.now()
             });
 
-            return false;
+            await updateSyncJobResult(this.syncJobId as number, updatedResults, model);
+
+            return true;
+        } else {
+            const content = `There was an issue with the batch delete. ${responseResults?.error}`;
+
+            if (!this.dryRun) {
+                await createActivityLogMessage({
+                    level: 'error',
+                    activity_log_id: this.activityLogId as number,
+                    content,
+                    timestamp: Date.now()
+                });
+
+                await errorManager.report(content, {
+                    environmentId: this.environmentId as number,
+                    source: ErrorSourceEnum.CUSTOMER,
+                    operation: LogActionEnum.SYNC,
+                    metadata: {
+                        connectionId: this.connectionId,
+                        providerConfigKey: this.providerConfigKey,
+                        syncId: this.syncId,
+                        nanogConnectionId: this.nangoConnectionId,
+                        syncJobId: this.syncJobId
+                    }
+                });
+            }
+
+            throw new Error(responseResults?.error);
         }
     }
 

@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { LogLevel, LogAction } from '@nangohq/shared';
+import type { LogLevel } from '@nangohq/shared';
 import {
     getAccount,
     getEnvironmentId,
@@ -14,7 +14,10 @@ import {
     connectionService,
     createActivityLogMessageAndEnd,
     AuthModes,
-    hmacService
+    getConnectionConfig,
+    hmacService,
+    ErrorSourceEnum,
+    LogActionEnum
 } from '@nangohq/shared';
 
 class ApiAuthController {
@@ -23,11 +26,12 @@ class ApiAuthController {
         const environmentId = getEnvironmentId(res);
         const { providerConfigKey } = req.params;
         const connectionId = req.query['connection_id'] as string | undefined;
+        const connectionConfig = req.query['params'] != null ? getConnectionConfig(req.query['params']) : {};
 
         const log = {
             level: 'info' as LogLevel,
             success: false,
-            action: 'auth' as LogAction,
+            action: LogActionEnum.AUTH,
             start: Date.now(),
             end: Date.now(),
             timestamp: Date.now(),
@@ -140,7 +144,7 @@ class ApiAuthController {
                     type: AuthModes.ApiKey,
                     apiKey
                 },
-                {},
+                connectionConfig,
                 environmentId,
                 accountId
             );
@@ -150,7 +154,7 @@ class ApiAuthController {
                 await syncClient?.initiate(updatedConnection.id);
             }
 
-            res.status(200).send();
+            res.status(200).send({ providerConfigKey: providerConfigKey as string, connectionId: connectionId as string });
         } catch (err) {
             const prettyError = JSON.stringify(err, ['message', 'name'], 2);
 
@@ -161,8 +165,10 @@ class ApiAuthController {
                 timestamp: Date.now()
             });
 
-            errorManager.report(err, {
-                accountId,
+            await errorManager.report(err, {
+                source: ErrorSourceEnum.PLATFORM,
+                operation: LogActionEnum.AUTH,
+                environmentId,
                 metadata: {
                     providerConfigKey,
                     connectionId
@@ -177,11 +183,12 @@ class ApiAuthController {
         const environmentId = getEnvironmentId(res);
         const { providerConfigKey } = req.params;
         const connectionId = req.query['connection_id'] as string | undefined;
+        const connectionConfig = req.query['params'] != null ? getConnectionConfig(req.query['params']) : {};
 
         const log = {
             level: 'info' as LogLevel,
             success: false,
-            action: 'auth' as LogAction,
+            action: LogActionEnum.AUTH,
             start: Date.now(),
             end: Date.now(),
             timestamp: Date.now(),
@@ -209,12 +216,6 @@ class ApiAuthController {
 
             if (!req.body.username) {
                 errorManager.errRes(res, 'missing_basic_username');
-
-                return;
-            }
-
-            if (!req.body.password) {
-                errorManager.errRes(res, 'missing_basic_password');
 
                 return;
             }
@@ -300,7 +301,7 @@ class ApiAuthController {
                     username,
                     password
                 },
-                {},
+                connectionConfig,
                 environmentId,
                 accountId
             );
@@ -310,7 +311,7 @@ class ApiAuthController {
                 await syncClient?.initiate(updatedConnection.id);
             }
 
-            res.status(200).send();
+            res.status(200).send({ providerConfigKey: providerConfigKey as string, connectionId: connectionId as string });
         } catch (err) {
             const prettyError = JSON.stringify(err, ['message', 'name'], 2);
 
@@ -321,8 +322,10 @@ class ApiAuthController {
                 timestamp: Date.now()
             });
 
-            errorManager.report(err, {
-                accountId,
+            await errorManager.report(err, {
+                source: ErrorSourceEnum.PLATFORM,
+                operation: LogActionEnum.AUTH,
+                environmentId,
                 metadata: {
                     providerConfigKey,
                     connectionId

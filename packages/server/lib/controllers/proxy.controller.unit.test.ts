@@ -53,6 +53,24 @@ describe('Proxy Controller Construct Header Tests', () => {
         });
     });
 
+    it('Should correctly construct headers for Basic auth with no password', () => {
+        const config = {
+            template: {
+                auth_mode: AuthModes.Basic
+            },
+            token: {
+                username: 'testuser'
+            }
+        };
+
+        // @ts-ignore
+        const result = proxyController.constructHeaders(config);
+
+        expect(result).toEqual({
+            Authorization: 'Basic ' + Buffer.from('testuser:').toString('base64')
+        });
+    });
+
     it('Should correctly construct headers for Basic auth + any custom headers', () => {
         const config = {
             template: {
@@ -329,7 +347,7 @@ describe('Proxy Controller Construct URL Tests', () => {
             template: {
                 auth_mode: AuthModes.OAuth2,
                 proxy: {
-                    base_url: 'https://www.zohoapis.${connectionConfig.params.extension}'
+                    base_url: 'https://www.zohoapis.${connectionConfig.extension}'
                 }
             },
             token: { apiKey: 'sweet-secret-token' },
@@ -337,7 +355,7 @@ describe('Proxy Controller Construct URL Tests', () => {
         };
 
         const connection = {
-            connection_config: { 'connectionConfig.params.extension': 'eu' }
+            connection_config: { extension: 'eu' }
         };
 
         // @ts-ignore

@@ -8,6 +8,8 @@ import {
     analytics,
     configService,
     Config as ProviderConfig,
+    IntegrationWithCreds,
+    Integration as ProviderIntegration,
     connectionService
 } from '@nangohq/shared';
 import { getUserAccountAndEnvironmentFromSession, parseConnectionConfigParamsFromTemplate } from '../utils/utils.js';
@@ -28,7 +30,12 @@ class ConfigController {
 
     async listProviderConfigsWeb(req: Request, res: Response, next: NextFunction) {
         try {
-            const environment = (await getUserAccountAndEnvironmentFromSession(req)).environment;
+            const { success, error, response } = await getUserAccountAndEnvironmentFromSession(req);
+            if (!success || response === null) {
+                errorManager.errResFromNangoErr(res, error);
+                return;
+            }
+            const { environment } = response;
 
             const configs = await configService.listProviderConfigs(environment.id);
 
@@ -61,7 +68,12 @@ class ConfigController {
 
     async editProviderConfigWeb(req: Request, res: Response, next: NextFunction) {
         try {
-            const environment = (await getUserAccountAndEnvironmentFromSession(req)).environment;
+            const { success, error, response } = await getUserAccountAndEnvironmentFromSession(req);
+            if (!success || response === null) {
+                errorManager.errResFromNangoErr(res, error);
+                return;
+            }
+            const { environment } = response;
 
             if (req.body == null) {
                 errorManager.errRes(res, 'missing_body');
@@ -126,7 +138,13 @@ class ConfigController {
 
     async getProviderConfig(req: Request, res: Response, next: NextFunction) {
         try {
-            const { environmentId } = await getEnvironmentAndAccountId(res, req);
+            const { success, error, response } = await getEnvironmentAndAccountId(res, req);
+            if (!success || response === null) {
+                errorManager.errResFromNangoErr(res, error);
+                return;
+            }
+            const { environmentId } = response;
+
             const providerConfigKey = req.params['providerConfigKey'] as string;
             const includeCreds = req.query['include_creds'] === 'true';
 
@@ -142,15 +160,15 @@ class ConfigController {
                 return;
             }
 
-            const configRes = includeCreds
-                ? {
-                      uniqueKey: config.unique_key,
+            const configRes: ProviderIntegration | IntegrationWithCreds = includeCreds
+                ? ({
+                      unique_key: config.unique_key,
                       provider: config.provider,
-                      clientId: config.oauth_client_id,
-                      clientSecret: config.oauth_client_secret,
+                      client_id: config.oauth_client_id,
+                      client_secret: config.oauth_client_secret,
                       scopes: config.oauth_scopes
-                  }
-                : { uniqueKey: config.unique_key, provider: config.provider };
+                  } as IntegrationWithCreds)
+                : ({ unique_key: config.unique_key, provider: config.provider } as ProviderIntegration);
 
             res.status(200).send({ config: configRes });
         } catch (err) {
@@ -160,7 +178,12 @@ class ConfigController {
 
     async createProviderConfig(req: Request, res: Response, next: NextFunction) {
         try {
-            const { accountId, environmentId } = await getEnvironmentAndAccountId(res, req);
+            const { success, error, response } = await getEnvironmentAndAccountId(res, req);
+            if (!success || response === null) {
+                errorManager.errResFromNangoErr(res, error);
+                return;
+            }
+            const { accountId, environmentId } = response;
 
             if (req.body == null) {
                 errorManager.errRes(res, 'missing_body');
@@ -207,6 +230,11 @@ class ConfigController {
             const oauth_client_id = req.body['oauth_client_id'] ?? null;
             const oauth_client_secret = req.body['oauth_client_secret'] ?? null;
             const oauth_scopes = req.body['oauth_scopes'] ?? '';
+
+            if (oauth_scopes && Array.isArray(oauth_scopes)) {
+                errorManager.errRes(res, 'invalid_oauth_scopes');
+                return;
+            }
 
             const config: ProviderConfig = {
                 unique_key: uniqueConfigKey,
@@ -296,7 +324,12 @@ class ConfigController {
 
     async deleteProviderConfig(req: Request, res: Response, next: NextFunction) {
         try {
-            const { environmentId } = await getEnvironmentAndAccountId(res, req);
+            const { success, error, response } = await getEnvironmentAndAccountId(res, req);
+            if (!success || response === null) {
+                errorManager.errResFromNangoErr(res, error);
+                return;
+            }
+            const { environmentId } = response;
             const providerConfigKey = req.params['providerConfigKey'] as string;
 
             if (providerConfigKey == null) {
@@ -306,7 +339,7 @@ class ConfigController {
 
             await configService.deleteProviderConfig(providerConfigKey, environmentId);
 
-            res.status(200).send();
+            res.status(204).send();
         } catch (err) {
             next(err);
         }

@@ -1,6 +1,7 @@
 import db from '../db/database.js';
 import type { Account } from '../models/Admin';
-import errorManager from '../utils/error.manager.js';
+import { LogActionEnum } from '../models/Activity.js';
+import errorManager, { ErrorSourceEnum } from '../utils/error.manager.js';
 
 class AccountService {
     async getAccountById(id: number): Promise<Account | null> {
@@ -14,6 +15,8 @@ class AccountService {
             return result[0];
         } catch (e) {
             errorManager.report(e, {
+                source: ErrorSourceEnum.PLATFORM,
+                operation: LogActionEnum.DATABASE,
                 accountId: id
             });
 
@@ -21,8 +24,16 @@ class AccountService {
         }
     }
 
-    async editAccount(accountId: number, name: string, ownerId: number): Promise<Account | null> {
-        return db.knex.withSchema(db.schema()).from<Account>(`_nango_accounts`).where({ id: accountId }).update({ name: name, owner_id: ownerId }, ['id']);
+    async editAccount(name: string, id: number): Promise<void> {
+        try {
+            await db.knex.withSchema(db.schema()).update({ name, updated_at: new Date() }).from<Account>(`_nango_accounts`).where({ id });
+        } catch (e) {
+            errorManager.report(e, {
+                source: ErrorSourceEnum.PLATFORM,
+                operation: LogActionEnum.DATABASE,
+                accountId: id
+            });
+        }
     }
 }
 

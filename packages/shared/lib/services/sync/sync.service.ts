@@ -30,7 +30,7 @@ const SYNC_CONFIG_TABLE = dbNamespace + 'sync_configs';
  */
 
 export const getById = async (id: string): Promise<Sync | null> => {
-    const result = await db.knex.withSchema(db.schema()).select('*').from<Sync>(TABLE).where({ id });
+    const result = await db.knex.withSchema(db.schema()).select('*').from<Sync>(TABLE).where({ id, deleted: false });
 
     if (!result || result.length == 0 || !result[0]) {
         return null;
@@ -61,19 +61,93 @@ export const createSync = async (nangoConnectionId: number, name: string): Promi
     return result[0];
 };
 
-export const getLastSyncDate = async (nangoConnectionId: number, syncName: string): Promise<Date | null> => {
-    const sync = await getSyncByIdAndName(nangoConnectionId, syncName);
+export const getLastSyncDate = async (id: string, backup = true): Promise<Date | null> => {
+    const result = await schema().select('last_sync_date').from<Sync>(TABLE).where({
+        id,
+        deleted: false
+    });
 
-    if (!sync) {
+    if (!result || result.length == 0 || !result[0]) {
         return null;
     }
 
+    let { last_sync_date } = result[0];
+
+    if (backup && last_sync_date === null) {
+        last_sync_date = await getJobLastSyncDate(id);
+    }
+
+    return last_sync_date;
+};
+
+export const clearLastSyncDate = async (id: string): Promise<void> => {
+    await schema()
+        .from<Sync>(TABLE)
+        .where({
+            id,
+            deleted: false
+        })
+        .update({
+            last_sync_date: null
+        });
+};
+
+/**
+ * Set Last Sync Date
+ * @desc if passed a valid date set the sync date, however if
+ * we don't want to override the sync make sure it is null
+ * before we set it
+ *
+ * This is due to the fact that users can set the last sync date
+ * during the integration script so we don't want to override what they
+ * set in the script
+ */
+export const setLastSyncDate = async (id: string, date: Date, override = true): Promise<boolean> => {
+    if (!date) {
+        return false;
+    }
+
+    if (isNaN(date.getTime())) {
+        return false;
+    }
+
+    // if override is false that means we need to verify
+    // that we should update the last sync date
+    // if it isn't null
+    if (!override) {
+        const lastSyncDate = await getLastSyncDate(id, false);
+
+        if (lastSyncDate !== null) {
+            return false;
+        }
+    }
+
+    await schema()
+        .from<Sync>(TABLE)
+        .where({
+            id,
+            deleted: false
+        })
+        .update({
+            last_sync_date: date
+        });
+
+    return true;
+};
+
+/**
+ * Get Last Sync Date
+ * @desc this is the very end of the sync process so we know when the sync job
+ * is completely finished
+ */
+export const getJobLastSyncDate = async (sync_id: string): Promise<Date | null> => {
     const result = await schema()
         .select('updated_at')
         .from<SyncJob>(SYNC_JOB_TABLE)
         .where({
-            sync_id: sync.id as string,
-            status: SyncStatus.SUCCESS
+            sync_id,
+            status: SyncStatus.SUCCESS,
+            deleted: false
         })
         .orderBy('updated_at', 'desc')
         .first();
@@ -88,7 +162,7 @@ export const getLastSyncDate = async (nangoConnectionId: number, syncName: strin
 };
 
 export const getSyncByIdAndName = async (nangoConnectionId: number, name: string): Promise<Sync | null> => {
-    const result = await db.knex.withSchema(db.schema()).select('*').from<Sync>(TABLE).where({ nango_connection_id: nangoConnectionId, name });
+    const result = await db.knex.withSchema(db.schema()).select('*').from<Sync>(TABLE).where({ nango_connection_id: nangoConnectionId, name, deleted: false });
 
     if (Array.isArray(result) && result.length > 0) {
         return result[0] as Sync;
@@ -102,7 +176,30 @@ export const getSyncsFlat = async (nangoConnection: Connection): Promise<SyncWit
         .select('*')
         .from<Sync>(TABLE)
         .join(SYNC_SCHEDULE_TABLE, `${SYNC_SCHEDULE_TABLE}.sync_id`, `${TABLE}.id`)
-        .where({ nango_connection_id: nangoConnection.id });
+        .where({
+            nango_connection_id: nangoConnection.id,
+            [`${SYNC_SCHEDULE_TABLE}.deleted`]: false,
+            [`${TABLE}.deleted`]: false
+        });
+
+    if (Array.isArray(result) && result.length > 0) {
+        return result;
+    }
+
+    return [];
+};
+
+export const getSyncsFlatWithNames = async (nangoConnection: Connection, syncNames: string[]): Promise<SyncWithSchedule[]> => {
+    const result = await schema()
+        .select('*')
+        .from<Sync>(TABLE)
+        .join(SYNC_SCHEDULE_TABLE, `${SYNC_SCHEDULE_TABLE}.sync_id`, `${TABLE}.id`)
+        .where({
+            nango_connection_id: nangoConnection.id,
+            [`${SYNC_SCHEDULE_TABLE}.deleted`]: false,
+            [`${TABLE}.deleted`]: false
+        })
+        .whereIn(`${TABLE}.name`, syncNames);
 
     if (Array.isArray(result) && result.length > 0) {
         return result;
@@ -144,7 +241,6 @@ export const getSyncs = async (nangoConnection: Connection): Promise<Sync[]> => 
                         'type', nango.${SYNC_JOB_TABLE}.type,
                         'result', nango.${SYNC_JOB_TABLE}.result,
                         'status', nango.${SYNC_JOB_TABLE}.status,
-                        'activity_log_id', nango.${SYNC_JOB_TABLE}.activity_log_id,
                         'sync_config_id', nango.${SYNC_JOB_TABLE}.sync_config_id,
                         'version', nango.${SYNC_CONFIG_TABLE}.version,
                         'models', nango.${SYNC_CONFIG_TABLE}.models
@@ -152,6 +248,8 @@ export const getSyncs = async (nangoConnection: Connection): Promise<Sync[]> => 
                     FROM nango.${SYNC_JOB_TABLE}
                     JOIN nango.${SYNC_CONFIG_TABLE} ON nango.${SYNC_CONFIG_TABLE}.id = nango.${SYNC_JOB_TABLE}.sync_config_id
                     WHERE nango.${SYNC_JOB_TABLE}.sync_id = nango.${TABLE}.id
+                    AND nango.${SYNC_JOB_TABLE}.deleted = false
+                    AND nango.${SYNC_CONFIG_TABLE}.deleted = false
                     ORDER BY nango.${SYNC_JOB_TABLE}.updated_at DESC
                     LIMIT 1
                 ) as latest_sync
@@ -161,7 +259,10 @@ export const getSyncs = async (nangoConnection: Connection): Promise<Sync[]> => 
         .leftJoin(SYNC_JOB_TABLE, `${SYNC_JOB_TABLE}.sync_id`, '=', `${TABLE}.id`)
         .join(SYNC_SCHEDULE_TABLE, `${SYNC_SCHEDULE_TABLE}.sync_id`, `${TABLE}.id`)
         .where({
-            nango_connection_id: nangoConnection.id
+            nango_connection_id: nangoConnection.id,
+            [`${SYNC_SCHEDULE_TABLE}.deleted`]: false,
+            [`${SYNC_JOB_TABLE}.deleted`]: false,
+            [`${TABLE}.deleted`]: false
         })
         .orderBy(`${TABLE}.name`, 'asc')
         .groupBy(
@@ -191,7 +292,7 @@ export const getSyncs = async (nangoConnection: Connection): Promise<Sync[]> => 
 };
 
 export const getSyncsByConnectionId = async (nangoConnectionId: number): Promise<Sync[] | null> => {
-    const results = await db.knex.withSchema(db.schema()).select('*').from<Sync>(TABLE).where({ nango_connection_id: nangoConnectionId });
+    const results = await db.knex.withSchema(db.schema()).select('*').from<Sync>(TABLE).where({ nango_connection_id: nangoConnectionId, deleted: false });
 
     if (Array.isArray(results) && results.length > 0) {
         return results;
@@ -208,7 +309,9 @@ export const getSyncsByProviderConfigKey = async (environment_id: number, provid
         .join('_nango_connections', '_nango_connections.id', `${TABLE}.nango_connection_id`)
         .where({
             environment_id,
-            provider_config_key: providerConfigKey
+            provider_config_key: providerConfigKey,
+            [`_nango_connections.deleted`]: false,
+            [`${TABLE}.deleted`]: false
         });
 
     return results;
@@ -223,7 +326,9 @@ export const getSyncsByProviderConfigAndSyncName = async (environment_id: number
         .where({
             environment_id,
             provider_config_key: providerConfigKey,
-            name: syncName
+            name: syncName,
+            [`_nango_connections.deleted`]: false,
+            [`${TABLE}.deleted`]: false
         });
 
     return results;
@@ -241,7 +346,9 @@ export const verifyOwnership = async (nangoConnectionId: number, environment_id:
         .where({
             environment_id,
             [`${TABLE}.id`]: syncId,
-            nango_connection_id: nangoConnectionId
+            nango_connection_id: nangoConnectionId,
+            [`_nango_connections.deleted`]: false,
+            [`${TABLE}.deleted`]: false
         });
 
     if (result.length === 0) {
@@ -252,13 +359,24 @@ export const verifyOwnership = async (nangoConnectionId: number, environment_id:
 };
 
 export const deleteSync = async (syncId: string): Promise<string> => {
-    await schema().from<Sync>(TABLE).where({ id: syncId }).del();
+    await schema().from<Sync>(TABLE).where({ id: syncId, deleted: false }).update({ deleted: true });
+
+    await syncOrchestrator.deleteSyncRelatedObjects(syncId);
 
     return syncId;
 };
 
-export const findSyncByConnections = async (connectionIds: number[]): Promise<Sync[]> => {
-    const results = await schema().select('*').from<Sync>(TABLE).whereIn('nango_connection_id', connectionIds);
+export const findSyncByConnections = async (connectionIds: number[], sync_name: string): Promise<Sync[]> => {
+    const results = await schema()
+        .select('*')
+        .from<Sync>(TABLE)
+        .join('_nango_connections', '_nango_connections.id', `${TABLE}.nango_connection_id`)
+        .whereIn('nango_connection_id', connectionIds)
+        .andWhere({
+            name: sync_name,
+            [`${TABLE}.deleted`]: false,
+            [`_nango_connections.deleted`]: false
+        });
 
     if (Array.isArray(results) && results.length > 0) {
         return results;
@@ -299,7 +417,10 @@ export const getAndReconcileSyncDifferences = async (
 
         // if it has connections but doesn't have an active sync then it is considered a new sync
         if (exists && connections.length > 0) {
-            const syncsByConnection = await findSyncByConnections(connections.map((connection) => connection.id as number));
+            const syncsByConnection = await findSyncByConnections(
+                connections.map((connection) => connection.id as number),
+                syncName
+            );
             isNew = syncsByConnection.length === 0;
         }
 
@@ -363,11 +484,11 @@ export const getAndReconcileSyncDifferences = async (
                         content: `Deleting sync ${existingSync.sync_name} for ${existingSync.unique_key} with ${connections.length} connections`
                     });
                 }
-                await syncOrchestrator.deleteConfig(existingSync.id as number);
+                await syncOrchestrator.deleteConfig(existingSync.id as number, environmentId);
                 for (const connection of connections) {
                     const syncId = await getSyncByIdAndName(connection.id as number, existingSync.sync_name);
                     if (syncId) {
-                        await syncOrchestrator.deleteSync(syncId.id as string);
+                        await syncOrchestrator.deleteSync(syncId.id as string, environmentId);
                     }
                 }
 

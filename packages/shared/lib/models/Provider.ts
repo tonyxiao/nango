@@ -1,9 +1,8 @@
 import type { AuthModes } from './Auth.js';
+import type { TimestampsAndDeleted } from './Generic.js';
 
-export interface Config {
+export interface Config extends TimestampsAndDeleted {
     id?: number;
-    created_at?: Date;
-    updated_at?: Date;
     unique_key: string;
     provider: string;
     oauth_client_id: string;
@@ -42,4 +41,15 @@ export interface TemplateAlias {
     proxy: {
         base_url?: string;
     };
+}
+
+export interface IntegrationWithCreds extends Integration {
+    client_id: string;
+    client_secret: string;
+    scopes: string;
+}
+
+export interface Integration {
+    unique_key: string;
+    provider: string;
 }

@@ -59,7 +59,7 @@ export default function Activity() {
     const [loaded, setLoaded] = useState(false);
     const [activities, setActivities] = useState([]);
     const [expandedRow, setExpandedRow] = useState(-1);
-    const [limit,] = useState(30);
+    const [limit,] = useState(20);
     const [offset, setOffset] = useState(0);
 
     const location = useLocation();
@@ -385,7 +385,7 @@ export default function Activity() {
                                                         <p>{activity.id === expandedRow ? 'Hide Logs' : 'Show Logs'}</p>
                                                     </button>
                                                 )}
-                                                {activity.messages[0] && <CopyButton icontype="link" text={`${window.location.host}/activity?env=${env}&activity_log_id=${activity.id}${offset === 0 ? '': `&offset=${offset}`}`} />}
+                                                {activity.messages[0] && <CopyButton icontype="link" dark text={`${window.location.host}/activity?env=${env}&activity_log_id=${activity.id}${offset === 0 ? '': `&offset=${offset}`}`} />}
                                             </div>
                                             {activity.id === expandedRow && activity.messages[0] && (
                                                 <>

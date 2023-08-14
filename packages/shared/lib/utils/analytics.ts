@@ -1,12 +1,14 @@
 import { PostHog } from 'posthog-node';
 import { getBaseUrl, localhostUrl, dirname, UserType, isCloud, isStaging } from '../utils/utils.js';
 import ip from 'ip';
-import errorManager from './error.manager.js';
+import errorManager, { ErrorSourceEnum } from './error.manager.js';
 import { readFileSync } from 'fs';
 import path from 'path';
 import accountService from '../services/account.service.js';
+import environmentService from '../services/environment.service.js';
 import userService from '../services/user.service.js';
 import type { Account, User } from '../models/Admin.js';
+import { LogActionEnum } from '../models/Activity.js';
 
 class Analytics {
     client: PostHog | undefined;
@@ -20,7 +22,10 @@ class Analytics {
                 this.packageVersion = JSON.parse(readFileSync(path.resolve(dirname(), '../../../package.json'), 'utf8')).version;
             }
         } catch (e) {
-            errorManager.report(e);
+            errorManager.report(e, {
+                source: ErrorSourceEnum.PLATFORM,
+                operation: LogActionEnum.ANALYTICS
+            });
         }
     }
 
@@ -44,12 +49,12 @@ class Analytics {
 
             if (isCloud() && accountId != null) {
                 const account: Account | null = await accountService.getAccountById(accountId);
-                if (account != null && account.owner_id != null) {
-                    const user: User | null = await userService.getUserById(account.owner_id);
+                if (account !== null && account.id !== undefined) {
+                    const users: User[] | null = await userService.getUsersByAccountId(account.id);
 
-                    if (user != null) {
-                        userProperties['email'] = user.email;
-                        userProperties['name'] = user.name;
+                    if (users) {
+                        userProperties['email'] = users.map((user) => user.email).join(',');
+                        userProperties['name'] = users.map((user) => user.name).join(',');
                     }
                 }
             }
@@ -64,7 +69,23 @@ class Analytics {
                 properties: eventProperties
             });
         } catch (e) {
-            errorManager.report(e, { accountId: accountId });
+            errorManager.report(e, {
+                source: ErrorSourceEnum.PLATFORM,
+                operation: LogActionEnum.ANALYTICS,
+                accountId: accountId
+            });
+        }
+    }
+
+    public async trackByEnvironmentId(
+        name: string,
+        environmentId: number,
+        eventProperties?: Record<string | number, any>,
+        userProperties?: Record<string | number, any>
+    ) {
+        const accountId = await environmentService.getAccountIdFromEnvironment(environmentId);
+        if (accountId) {
+            this.track(name, accountId as number, eventProperties, userProperties);
         }
     }
 

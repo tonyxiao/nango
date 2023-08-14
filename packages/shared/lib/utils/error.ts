@@ -61,6 +61,11 @@ export class NangoError extends Error {
                 this.message = 'The admin key is not configured on the server. Contact the API provider.';
                 break;
 
+            case 'user_not_found':
+                this.status = 401;
+                this.message = 'Authentication failed. The user could not be found.';
+                break;
+
             case 'missing_body':
                 this.status = 400;
                 this.message = 'Missing request body.';
@@ -82,7 +87,7 @@ export class NangoError extends Error {
                 break;
 
             case 'duplicate_account':
-                this.status = 400;
+                this.status = 409;
                 this.message = 'Email already exists.';
                 break;
 
@@ -106,9 +111,19 @@ export class NangoError extends Error {
                 this.message = 'The API endpoint returned back a 400 error. Check the headers to ensure all proper headers are passed to the API.';
                 break;
 
+            case 'invalid_oauth_scopes':
+                this.status = 400;
+                this.message = 'The requested OAuth scopes are invalid. OAuth scopes should be comma separated and not an array';
+                break;
+
             case 'missing_environment_id':
                 this.status = 400;
                 this.message = `Missing param 'environment_id'.`;
+                break;
+
+            case 'invalid_invite_token':
+                this.status = 400;
+                this.message = 'The invite token is invalid.';
                 break;
 
             case 'missing_api_key':
@@ -166,6 +181,11 @@ export class NangoError extends Error {
                 this.message = `Missing param 'callback_url'.`;
                 break;
 
+            case 'provider_config_creation_failure':
+                this.status = 500;
+                this.message = `Failed to create the Provider Configuration. Please try again.`;
+                break;
+
             case 'unknown_provider_config':
                 this.status = 400;
                 this.message = `There is no Provider Configuration matching this key.`;
@@ -197,6 +217,26 @@ export class NangoError extends Error {
             case 'missing_connection':
                 this.status = 400;
                 this.message = `Missing param 'connection_id'.`;
+                break;
+
+            case 'invalid_offset':
+                this.status = 400;
+                this.message = 'Invalid offset provided. The offset should be a number.';
+                break;
+
+            case 'invalid_limit':
+                this.status = 400;
+                this.message = 'Invalid limit provided. The limit should be a number.';
+                break;
+
+            case 'invalid_timestamp':
+                this.status = 400;
+                this.message = 'Invalid timestamp provided. The timestamp should be an ISO 8601 string, for example 2023-01-01T00:00:00.000Z.';
+                break;
+
+            case 'missing_model':
+                this.status = 400;
+                this.message = `Missing param 'model'.`;
                 break;
 
             case 'unknown_connection':
@@ -242,7 +282,7 @@ export class NangoError extends Error {
                 break;
 
             case 'duplicate_provider_config':
-                this.status = 400;
+                this.status = 409;
                 this.message = `There is already a Provider Configuration matching the param 'provider_config_key'.`;
                 break;
 
@@ -262,7 +302,7 @@ export class NangoError extends Error {
                 break;
 
             case 'file_upload_error':
-                this.status = 400;
+                this.status = 500;
                 this.message = 'Error uploading file. Please contact support with the filename and connection details';
                 break;
 
@@ -272,14 +312,29 @@ export class NangoError extends Error {
                 break;
 
             case 'error_creating_sync_config':
-                this.status = 400;
+                this.status = 500;
                 this.message = 'Error creating sync config from a deploy. Please contact support with the sync name and connection details';
+                break;
+
+            case 'generic_error_support':
+                this.status = 500;
+                this.message = 'An error occurred. Please contact support with this unique id: ' + this.payload;
+                break;
+
+            case 'missing_id_field':
+                this.status = 400;
+                this.message = `Missing id field in the "${this.payload}" model. Make sure every single element in the array has an id property.`;
+                break;
+
+            case 'sync_interval_too_short':
+                this.status = 400;
+                this.message = 'Sync interval is too short. The minimum interval is 5 minutes.';
                 break;
 
             default:
                 this.status = 500;
                 this.type = 'unhandled_' + type;
-                this.message = `An unhandled error has occurred: ${type}`;
+                this.message = `An unhandled error ${this.payload} has occurred: ${type}`;
         }
     }
 

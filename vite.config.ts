@@ -6,7 +6,6 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
     test: {
-        /* for example, use global to avoid globals imports (describe, test, expect): */
-        // globals: true,
+        include: ['**/*.unit.{test,spec}.?(c|m)[jt]s?(x)']
     }
 });

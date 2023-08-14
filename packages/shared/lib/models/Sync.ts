@@ -1,4 +1,5 @@
-import type { LogAction } from './Activity.js';
+import { LogActionEnum } from './Activity.js';
+import type { Timestamps, TimestampsAndDeleted } from './Generic.js';
 
 export enum SyncStatus {
     RUNNING = 'RUNNING',
@@ -12,11 +13,6 @@ export enum SyncType {
     INCREMENTAL = 'INCREMENTAL'
 }
 
-interface Timestamps {
-    created_at?: string;
-    updated_at?: string;
-}
-
 export interface SyncResult {
     added: number;
     updated: number;
@@ -27,23 +23,23 @@ export interface SyncResultByModel {
     [key: string]: SyncResult;
 }
 
-export interface Sync extends Timestamps {
+export interface Sync extends TimestampsAndDeleted {
     id?: string;
     nango_connection_id: number;
     name: string;
+    last_sync_date?: Date | null;
     futureActionTimes?: {
         seconds?: number;
         nanos?: number;
     };
 }
 
-export interface Job extends Timestamps {
+export interface Job extends TimestampsAndDeleted {
     id?: number;
     status: SyncStatus;
     type: SyncType;
     sync_id: string;
     job_id: string;
-    activity_log_id: number | null;
     result?: SyncResultByModel;
     sync_config_id?: number;
 }
@@ -56,7 +52,7 @@ export interface SyncModelSchema {
     }[];
 }
 
-export interface SyncConfig extends Timestamps {
+export interface SyncConfig extends TimestampsAndDeleted {
     id?: number;
     environment_id: number;
     sync_name: string;
@@ -105,7 +101,7 @@ export enum ScheduleStatus {
     STOPPED = 'STOPPED'
 }
 
-export interface Schedule extends Timestamps {
+export interface Schedule extends TimestampsAndDeleted {
     id?: string;
     schedule_id: string;
     status: ScheduleStatus;
@@ -116,7 +112,7 @@ export interface Schedule extends Timestamps {
 }
 
 export interface DataRecord extends Timestamps {
-    [index: string]: number | string | Date | object | undefined;
+    [index: string]: number | string | Date | object | undefined | boolean | null;
     id?: string;
     external_id: string;
     json: object;
@@ -125,6 +121,8 @@ export interface DataRecord extends Timestamps {
     model: string;
     sync_id: string;
     sync_config_id?: number | undefined;
+    external_is_deleted?: boolean;
+    external_deleted_at?: Date | null;
 }
 
 export type SyncWithSchedule = Sync & Schedule;
@@ -137,10 +135,10 @@ export enum SyncCommand {
 }
 
 export const CommandToActivityLog = {
-    PAUSE: 'pause sync' as LogAction,
-    UNPAUSE: 'restart sync' as LogAction,
-    RUN: 'trigger sync' as LogAction,
-    RUN_FULL: 'full sync' as LogAction
+    PAUSE: LogActionEnum.PAUSE_SYNC,
+    UNPAUSE: LogActionEnum.RESTART_SYNC,
+    RUN: LogActionEnum.TRIGGER_SYNC,
+    RUN_FULL: LogActionEnum.FULL_SYNC
 };
 
 export const SyncCommandToScheduleStatus = {

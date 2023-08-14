@@ -1,6 +1,8 @@
 import { deleteSyncConfig, deleteSyncFilesForConfig } from './config.service.js';
-import { deleteScheduleForSync } from './schedule.service.js';
-import { createSync, deleteSync } from './sync.service.js';
+import { deleteScheduleForSync, deleteSchedulesBySyncId as deleteSyncSchedulesBySyncId } from './schedule.service.js';
+import { deleteJobsBySyncId as deleteSyncJobsBySyncId } from './job.service.js';
+import { deleteRecordsBySyncId as deleteSyncResultsBySyncId } from './data-records.service.js';
+import { createSync, deleteSync, getSyncsByConnectionId, getSyncsByProviderConfigKey } from './sync.service.js';
 import { createActivityLogMessage } from '../activity/activity.service.js';
 import SyncClient from '../../clients/sync.client.js';
 import configService from '../config.service.js';
@@ -90,14 +92,43 @@ export class Orchestrator {
      * 1) sync config files
      * 2) sync config
      */
-    public async deleteConfig(syncConfigId: number) {
-        await deleteSyncFilesForConfig(syncConfigId);
+    public async deleteConfig(syncConfigId: number, environmentId: number) {
+        await deleteSyncFilesForConfig(syncConfigId, environmentId);
         await deleteSyncConfig(syncConfigId);
     }
 
-    public async deleteSync(syncId: string) {
-        await deleteScheduleForSync(syncId as string);
+    public async deleteSync(syncId: string, environmentId: number) {
+        await deleteScheduleForSync(syncId as string, environmentId);
         await deleteSync(syncId as string);
+    }
+
+    public async deleteSyncRelatedObjects(syncId: string) {
+        await deleteSyncJobsBySyncId(syncId);
+        await deleteSyncSchedulesBySyncId(syncId);
+        await deleteSyncResultsBySyncId(syncId);
+    }
+
+    public async deleteSyncsByConnection(connection: Connection) {
+        const syncs = await getSyncsByConnectionId(connection.id as number);
+
+        if (!syncs) {
+            return;
+        }
+        for (const sync of syncs) {
+            await this.deleteSync(sync.id as string, connection.environment_id as number);
+        }
+    }
+
+    public async deleteSyncsByProviderConfig(environmentId: number, providerConfigKey: string) {
+        const syncs = await getSyncsByProviderConfigKey(environmentId, providerConfigKey);
+
+        if (!syncs) {
+            return;
+        }
+
+        for (const sync of syncs) {
+            await this.deleteSync(sync.id as string, environmentId);
+        }
     }
 }
 
