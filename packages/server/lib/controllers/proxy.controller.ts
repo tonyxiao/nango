@@ -23,7 +23,6 @@ import {
     configService,
     errorManager,
     connectionService,
-    getAccount,
     getEnvironmentId,
     getAccount,
     interpolateIfNeeded,

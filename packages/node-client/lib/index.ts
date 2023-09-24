@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosStatic, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 import {
     AuthModes,
