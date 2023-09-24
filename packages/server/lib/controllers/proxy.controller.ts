@@ -288,6 +288,56 @@ See https://docs.nango.dev/guides/proxy#proxy-requests for more information.`
         }
     }
 
+    private retryHandler = async (activityLogId: number, error: AxiosError, type: 'at' | 'after', retryHeader: string): Promise<boolean> => {
+        if (type === 'at') {
+            const resetTimeEpoch = error?.response?.headers[retryHeader] || error?.response?.headers[retryHeader.toLowerCase()];
+
+            if (resetTimeEpoch) {
+                const currentEpochTime = Math.floor(Date.now() / 1000);
+                const retryAtEpoch = Number(resetTimeEpoch);
+
+                if (retryAtEpoch > currentEpochTime) {
+                    const waitDuration = retryAtEpoch - currentEpochTime;
+
+                    const content = `Rate limit reset time was parsed successfully, retrying after ${waitDuration} seconds`;
+
+                    await createActivityLogMessage({
+                        level: 'error',
+                        activity_log_id: activityLogId,
+                        timestamp: Date.now(),
+                        content
+                    });
+
+                    await new Promise((resolve) => setTimeout(resolve, waitDuration * 1000));
+
+                    return true;
+                }
+            }
+        }
+
+        if (type === 'after') {
+            const retryHeaderVal = error?.response?.headers[retryHeader] || error?.response?.headers[retryHeader.toLowerCase()];
+
+            if (retryHeaderVal) {
+                const retryAfter = Number(retryHeaderVal);
+                const content = `Retry header was parsed successfully, retrying after ${retryAfter} seconds`;
+
+                await createActivityLogMessage({
+                    level: 'error',
+                    activity_log_id: activityLogId,
+                    timestamp: Date.now(),
+                    content
+                });
+
+                await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+
+                return true;
+            }
+        }
+
+        return true;
+    };
+
     /**
      * Retry
      * @desc if retries are set the retry function to determine if retries are
@@ -295,14 +345,23 @@ See https://docs.nango.dev/guides/proxy#proxy-requests for more information.`
      * @param {AxiosError} error
      * @param {attemptNumber} number
      */
-    private retry = async (activityLogId: number, error: AxiosError, attemptNumber: number): Promise<boolean> => {
+    private retry = async (activityLogId: number, config: ProxyBodyConfiguration, error: AxiosError, attemptNumber: number): Promise<boolean> => {
         if (
             error?.response?.status.toString().startsWith('5') ||
+            // Note that Github issues a 403 for both rate limits and improper scopes
+            (error?.response?.status === 403 &&
+                error?.response?.headers['x-ratelimit-remaining'] &&
+                error?.response?.headers['x-ratelimit-remaining'] === '0') ||
             error?.response?.status === 429 ||
-            error?.code === 'ECONNRESET' ||
-            error?.code === 'ETIMEDOUT' ||
-            error?.code === 'ECONNABORTED'
+            ['ECONNRESET', 'ETIMEDOUT', 'ECONNABORTED'].includes(error?.code as string)
         ) {
+            if (config.template.proxy && config.template.proxy.retry && (config.template.proxy?.retry?.at || config.template.proxy?.retry?.after)) {
+                const type = config.template.proxy.retry.at ? 'at' : 'after';
+                const retryHeader = config.template.proxy.retry.at ? config.template.proxy.retry.at : config.template.proxy.retry.after;
+
+                return this.retryHandler(activityLogId, error, type, retryHeader as string);
+            }
+
             const content = `API received an ${
                 error?.response?.status || error?.code
             } error, retrying with exponential backoffs for a total of ${attemptNumber} times`;
@@ -470,7 +529,7 @@ See https://docs.nango.dev/guides/proxy#proxy-requests for more information.`
                         decompress: false
                     });
                 },
-                { numOfAttempts: Number(config.retries), retry: this.retry.bind(this, activityLogId) }
+                { numOfAttempts: Number(config.retries), retry: this.retry.bind(this, activityLogId, config) }
             );
 
             this.handleResponse(res, responseStream, config, activityLogId, url, isSync, isDryRun);
@@ -508,7 +567,7 @@ See https://docs.nango.dev/guides/proxy#proxy-requests for more information.`
                         decompress: false
                     });
                 },
-                { numOfAttempts: Number(config.retries), retry: this.retry.bind(this, activityLogId) }
+                { numOfAttempts: Number(config.retries), retry: this.retry.bind(this, activityLogId, config) }
             );
 
             this.handleResponse(res, responseStream, config, activityLogId, url, isSync, isDryRun);
@@ -546,7 +605,7 @@ See https://docs.nango.dev/guides/proxy#proxy-requests for more information.`
                         decompress: false
                     });
                 },
-                { numOfAttempts: Number(config.retries), retry: this.retry.bind(this, activityLogId) }
+                { numOfAttempts: Number(config.retries), retry: this.retry.bind(this, activityLogId, config) }
             );
 
             this.handleResponse(res, responseStream, config, activityLogId, url, isSync, isDryRun);
@@ -584,7 +643,7 @@ See https://docs.nango.dev/guides/proxy#proxy-requests for more information.`
                         decompress: false
                     });
                 },
-                { numOfAttempts: Number(config.retries), retry: this.retry.bind(this, activityLogId) }
+                { numOfAttempts: Number(config.retries), retry: this.retry.bind(this, activityLogId, config) }
             );
 
             this.handleResponse(res, responseStream, config, activityLogId, url, isSync, isDryRun);
@@ -621,7 +680,7 @@ See https://docs.nango.dev/guides/proxy#proxy-requests for more information.`
                         decompress: false
                     });
                 },
-                { numOfAttempts: Number(config.retries), retry: this.retry.bind(this, activityLogId) }
+                { numOfAttempts: Number(config.retries), retry: this.retry.bind(this, activityLogId, config) }
             );
             this.handleResponse(res, responseStream, config, activityLogId, url, isSync, isDryRun);
         } catch (e) {
@@ -640,7 +699,8 @@ See https://docs.nango.dev/guides/proxy#proxy-requests for more information.`
                     providerResponse: errorMessage.toString()
                 }),
                 params: {
-                    headers: JSON.stringify(config.headers)
+                    requestHeaders: JSON.stringify(config.headers),
+                    responseHeaders: JSON.stringify(error?.response?.headers)
                 }
             });
         } else {
