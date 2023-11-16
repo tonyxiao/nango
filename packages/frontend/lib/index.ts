@@ -153,11 +153,19 @@ export default class Nango {
             );
             this.tm = setInterval(() => {
                 if (!this.win?.modal?.window || this.win?.modal?.window.closed) {
-                    clearTimeout(this.tm as unknown as number);
-                    this.win = null;
-                    this.status = AuthorizationStatus.CANCELED;
-                    const error = new AuthError('The authorization window was closed before the authorization flow was completed', 'windowClosed');
-                    reject(error);
+                    if (this.status === AuthorizationStatus.BUSY) {
+                        setTimeout(() => {
+                            if (this.status !== AuthorizationStatus.DONE) {
+                                clearInterval(this.tm as unknown as number);
+                                this.win = null;
+                                this.status = AuthorizationStatus.CANCELED;
+                                const error = new AuthError('The authorization window was closed before the authorization flow was completed', 'windowClosed');
+                                reject(error);
+                            }
+                        }, 1000);
+                    }
+                } else {
+                    this.status = AuthorizationStatus.BUSY;
                 }
             }, 500);
         });
