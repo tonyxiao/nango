@@ -16,6 +16,7 @@
     },
     "dependencies": {
         "@nangohq/shared": "0.36.47",
+        "@nangohq/runner": "0.36.47",
         "@octokit/plugin-retry": "^6.0.0",
         "@octokit/plugin-throttling": "^7.0.0",
         "@octokit/rest": "^20.0.1",

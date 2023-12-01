@@ -170,7 +170,7 @@ interface Connection {
     credentials: AuthCredentials;
 }
 
-interface NangoProps {
+export interface NangoProps {
     host?: string;
     secretKey: string;
     connectionId?: string;

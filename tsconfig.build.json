@@ -2,6 +2,7 @@
     "files": [],
     "references": [
         { "path": "packages/node-client" },
+        { "path": "packages/runner" },
         { "path": "packages/shared" },
         { "path": "packages/worker" },
         { "path": "packages/cli" },

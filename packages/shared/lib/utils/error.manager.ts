@@ -3,7 +3,6 @@ import sentry, { EventHint } from '@sentry/node';
 import { readFileSync } from 'fs';
 import path from 'path';
 import type { ErrorEvent } from '@sentry/types';
-import logger from '../logger/console.js';
 import { NangoError } from './error.js';
 import type { Response, Request } from 'express';
 import { isCloud, getEnvironmentId, getAccountIdAndEnvironmentIdFromSession, dirname, isApiAuthenticated, isUserAuthenticated } from './utils.js';
@@ -105,8 +104,6 @@ class ErrorManager {
                 sentry.captureException(e);
             }
         });
-
-        logger.error(`Exception caught: ${JSON.stringify(e, Object.getOwnPropertyNames(e))}`);
     }
 
     public errResFromNangoErr(res: Response, err: NangoError | null) {

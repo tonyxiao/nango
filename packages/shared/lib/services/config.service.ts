@@ -20,7 +20,7 @@ class ConfigService {
     public DEMO_GITHUB_CONFIG_KEY = 'demo-github-integration';
 
     private getTemplatesFromFile() {
-        const templatesPath = path.join(dirname(), '../../../providers.yaml');
+        const templatesPath = process.env['NANGO_PROVIDERS_PATH'] || path.join(dirname(), '../../../providers.yaml');
 
         try {
             const fileEntries = yaml.load(fs.readFileSync(templatesPath).toString()) as { [key: string]: ProviderTemplate | ProviderTemplateAlias };

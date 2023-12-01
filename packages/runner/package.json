@@ -1,0 +1,30 @@
+{
+    "name": "@nangohq/runner",
+    "version": "0.36.47",
+    "description": "Runs Nango integration code",
+    "type": "module",
+    "main": "dist/index.js",
+    "typings": "dist/index.d.ts",
+    "scripts": {
+        "build": "rimraf ./dist && tsc",
+        "start": "node dist/app.js",
+        "dev": "nodemon",
+        "pkg": "ncc build -m dist/app.js -o dist/bin && mv dist/bin/index.js dist/bin/runner-bin.js"
+    },
+    "keywords": [],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/NangoHQ/nango",
+        "directory": "packages/server"
+    },
+    "license": "SEE LICENSE IN LICENSE FILE IN GIT REPOSITORY",
+    "dependencies": {
+        "@nangohq/shared": "0.36.47",
+        "@trpc/client": "^10.44.0",
+        "@trpc/server": "^10.44.0"
+    },
+    "devDependencies": {
+        "@types/node": "^18.7.6",
+        "typescript": "^5.3.2"
+    }
+}

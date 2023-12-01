@@ -7,7 +7,8 @@
         "packages/frontend",
         "packages/node-client",
         "packages/server",
-        "packages/worker"
+        "packages/worker",
+        "packages/runner"
     ],
     "scripts": {
         "create:migration": "cd packages/shared/lib/db && knex migrate:make $1 --esm --knexfile ./knexfile.cjs",
@@ -17,7 +18,7 @@
         "lint": "eslint . --ext .ts,.tsx",
         "lint:fix": "eslint . --ext .ts,.tsx --fix",
         "install:all": "npm i && cd packages/webapp && npm i && cd ../..",
-        "ts-build": "tsc -b --clean packages/shared packages/server packages/worker packages/cli && tsc -b tsconfig.build.json && tsc -b packages/webapp/tsconfig.json",
+        "ts-build": "tsc -b --clean packages/shared packages/server packages/worker packages/cli packages/runner && tsc -b tsconfig.build.json && tsc -b packages/webapp/tsconfig.json && npm run pkg -w @nangohq/runner",
         "docker-build": "docker build -f packages/server/Dockerfile -t nango-server:latest .",
         "webapp-build:hosted": "cd ./packages/webapp && npm run build:hosted && cd ../..",
         "webapp-build:staging": "cd ./packages/webapp && npm run build:staging && cd ../..",
@@ -32,9 +33,10 @@
         "worker:dev:watch": "cd ./packages/worker && npm run dev",
         "webapp:dev:watch": "cd ./packages/webapp && npm run start:hosted",
         "cli:watch": "cd ./packages/cli && npm run dev",
+        "runner:watch": "cd ./packages/runner && npm run dev",
         "prepare": "husky install",
-        "build:watch": "tsc -b -w tsconfig.build.json",
-        "dev:watch": "concurrently --kill-others \"npm run build:watch\" \"npm run webapp-build:watch\" \"npm run prettier-watch\" \"npm run shared:watch\" \"npm run cli:watch\"",
+        "build:watch": "tsc -b -w -v tsconfig.build.json",
+        "dev:watch": "concurrently --kill-others \"npm run build:watch\" \"npm run webapp-build:watch\" \"npm run prettier-watch\" \"npm run cli:watch\"",
         "watch:dev": "npm run dev:watch",
         "dev:watch:apps": "concurrently --kill-others \"npm run server:dev:watch\" \"npm run webapp:dev:watch\" \"npm run worker:dev:watch\" ",
         "watch:dev:apps": "npm run dev:watch:apps",
