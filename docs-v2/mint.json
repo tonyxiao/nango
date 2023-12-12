@@ -66,59 +66,150 @@
     ],
     "navigation": [
         {
-            "group": "Getting Started",
+            "group": "Get Started",
             "pages": [
-                    "introduction",
-                    "guides/integrate"
+                    "general/start/introduction",
+                    "general/start/demo"
                 ]
         },
         {
-            "group": "Step-By-Step Guides",
+            "group": "Ship Integrations",
             "pages": [
-                "quickstart",
-                "guides/oauth",
-                "guides/sync",
-                "guides/action",
+                "general/ship/overview",
                 {
-                    "group": "Other Guides",
-                    "pages": ["guides/proxy", "guides/webhooks", "guides/custom", "guides/advanced-auth", "guides/field-mapping", "guides/api-key", "guides/env-vars", "contribute"]
-                }, {
-                    "group": "Integration Templates",
+                    "group": "Ship An Integration",
                     "pages": [
-                        "integration-templates/overview",
-                        "integration-templates/asana",
-                        "integration-templates/confluence",
-                        "integration-templates/github",
-                        "integration-templates/gmail",
-                        "integration-templates/google-workspace",
-                        "integration-templates/hubspot",
-                        "integration-templates/intercom",
-                        "integration-templates/jira",
-                        "integration-templates/linear",
-                        "integration-templates/microsoft-active-directory",
-                        "integration-templates/notion",
-                        "integration-templates/salesforce",
-                        "integration-templates/slack",
-                        "integration-templates/zendesk"
+                        "general/ship/guides/setup",
+                        "general/ship/guides/authorize",
+                        "general/ship/guides/sync",
+                        "general/ship/guides/write",
+                        "general/ship/guides/monitor"
+                    ]
+                },
+                {
+                    "group": "Avanced Guides",
+                    "pages": [
+                        "general/ship/advanced-guides/secure-frontend",
+                        {
+                            "group": "Personalize Per Customer",
+                            "pages": [
+                                "general/ship/advanced/personalize/connection-metadata",
+                                "general/ship/advanced/personalize/custom-field-mappings",
+                                "general/ship/advanced/personalize/connection-scopes"
+                            ]
+                        },
+                        {
+                            "group": "Advanced Authorization Features",
+                            "pages": [
+                                "general/ship/advanced/authorization/custom-callback",
+                                "general/ship/advanced/authorization/connection-configuration",
+                                "general/ship/advanced/authorization/raw-credentials"
+                            ]
+                        },
+                        "general/ship/advanced-guides/proxy-requests",
+                        {
+                            "group": "Webhooks",
+                            "pages": [
+                                "general/ship/advanced/app-webhooks",
+                                "general/ship/advanced/external-webhooks"
+                            ]
+                        }
                     ]
                 }
             ]
         },
         {
-            "group": "Nango Offers",
+            "group": "Custom Integrations",
             "pages": [
-                "cloud",
-                "managed-integrations",
+                {
+                    "group": "Build A Custom Integration",
+                    "pages": [
+                        "general/custom/guides/setup",
+                        "general/custom/guides/script",
+                        "general/custom/guides/test",
+                        "general/custom/guides/deploy"
+                    ]
+                },
+                {
+                    "group": "Advanced Guides",
+                    "pages": [
+                        "general/custom/advanced/architecture",
+                        "general/custom/guides/api-configuration",
+                        "general/custom/guides/integration-configuration",
+                        "general/custom/guides/nango-runtime",
+                        "general/custom/guides/rate-limits",
+                        "general/custom/guides/sync-types",
+                        "general/custom/guides/custom-field-mappings",
+                        "general/custom/guides/deletions",
+                        "general/custom/guides/pagination",
+                        "general/custom/guides/environment-variables"
+                    ]
+                }
+            ]
+        },
+        {
+            "group": "Pre-Built Integrations",
+            "pages": [
+                "general/pre-built/integration-templates"
+            ]
+        },
+        {
+            "group": "Managed Integrations",
+            "pages": [
+                "general/managed/managed-integrations"
+            ]
+        },
+        {
+            "group": "Contribute",
+            "pages": [
+                "general/contribute/contribute-api",
+                "general/contribute/contribute-integration-template"
+            ]
+        },
+        {
+            "group": "Hosting",
+            "pages": [
+                "general/host/cloud",
                 {
                     "group": "Self-Hosting Instructions",
                     "pages": [
-                        "use/self-hosting-instructions",
-                        "use/local",
-                        "use/aws",
-                        "use/gcp",
-                        "use/digital-ocean",
-                        "use/render",
-                        "use/heroku"
+                        "general/host/self-host/self-hosting-instructions",
+                        "general/host/self-host/local",
+                        "general/host/self-host/aws",
+                        "general/host/self-host/gcp",
+                        "general/host/self-host/digital-ocean",
+                        "general/host/self-host/render",
+                        "general/host/self-host/heroku"
+                    ]
+                }
+            ]
+        },
+        { "group": "Old",
+            "pages": [
+                "old/general/guides/oauth",
+                "old/general/guides/sync",
+                "old/general/guides/action",
+                {
+                    "group": "Other Guides",
+                    "pages": ["general/guides/proxy", "general/guides/webhooks", "general/guides/custom", "general/guides/advanced-auth", "general/guides/field-mapping", "general/guides/api-key", "general/guides/env-vars"]
+                }, {
+                    "group": "Integration Templates",
+                    "pages": [
+                        "old/general/integration-templates/overview",
+                        "old/general/integration-templates/asana",
+                        "old/general/integration-templates/confluence",
+                        "old/general/integration-templates/github",
+                        "old/general/integration-templates/gmail",
+                        "old/general/integration-templates/google-workspace",
+                        "old/general/integration-templates/hubspot",
+                        "old/general/integration-templates/intercom",
+                        "old/general/integration-templates/jira",
+                        "old/general/integration-templates/linear",
+                        "old/general/integration-templates/microsoft-active-directory",
+                        "old/general/integration-templates/notion",
+                        "old/general/integration-templates/salesforce",
+                        "old/general/integration-templates/slack",
+                        "old/general/integration-templates/zendesk"
                     ]
                 }
             ]
