@@ -1,12 +1,10 @@
 import type { Context } from '@temporalio/activity';
-import { NodeVM } from 'vm2';
+import type { Runner } from './runner/runner.js';
 import {
     IntegrationServiceInterface,
     createActivityLogMessage,
-    getRootDir,
     NangoIntegrationData,
     NangoProps,
-    NangoSync,
     localFileService,
     remoteFileService,
     isCloud,
@@ -14,6 +12,7 @@ import {
     NangoError,
     formatScriptError
 } from '@nangohq/shared';
+import { getRunner } from './runner/runner.js';
 
 class IntegrationService implements IntegrationServiceInterface {
     public runningScripts: { [key: string]: Context } = {};
@@ -36,7 +35,6 @@ class IntegrationService implements IntegrationServiceInterface {
         temporalContext?: Context
     ): Promise<ServiceResponse<any>> {
         try {
-            const nango = new NangoSync(nangoProps);
             const script: string | null =
                 isCloud() && !optionalLoadLocation
                     ? await remoteFileService.getFile(integrationData.fileLocation as string, environmentId)
@@ -74,39 +72,24 @@ class IntegrationService implements IntegrationServiceInterface {
                 if (temporalContext) {
                     this.runningScripts[syncId] = temporalContext;
                 }
+                let runner: Runner | undefined = undefined;
+                try {
+                    const runnerId = `${syncName}:${nangoProps.connectionId}:${nangoProps.providerConfigKey}:${environmentId}`; // TODO
+                    runner = await getRunner(runnerId);
 
-                const vm = new NodeVM({
-                    console: 'inherit',
-                    sandbox: { nango },
-                    require: {
-                        external: true,
-                        builtin: ['url', 'crypto']
+                    // TODO: does this need to be synchronous? Add timeout if yes?
+                    const res = await runner.client.run.mutate({ nangoProps, code: script as string, codeParams: input as object, isAction });
+                    return { success: true, error: null, response: res };
+                } catch (err) {
+                    const errMsg = `There was an error running integration '${syncName}': ${err}`;
+                    return { success: false, error: new NangoError(errMsg, 500), response: null };
+                } finally {
+                    if (runner) {
+                        await runner.stop();
                     }
-                });
-
-                const rootDir = getRootDir(optionalLoadLocation);
-                const scriptExports = vm.run(script as string, `${rootDir}/*.js`);
-
-                if (typeof scriptExports.default === 'function') {
-                    const results = isAction ? await scriptExports.default(nango, input) : await scriptExports.default(nango);
-
-                    return { success: true, error: null, response: results };
-                } else {
-                    const content = `There is no default export that is a function for ${syncName}`;
-                    if (activityLogId && writeToDb) {
-                        await createActivityLogMessage({
-                            level: 'error',
-                            environment_id: environmentId,
-                            activity_log_id: activityLogId,
-                            content,
-                            timestamp: Date.now()
-                        });
-                    }
-
-                    return { success: false, error: new NangoError(content, 500), response: null };
                 }
             } catch (err: any) {
-                const errorType = isAction ? 'action_script_failure' : 'sync_script_failure';
+                const errorType = isAction ? 'action_script_failure' : 'sync_script_failre';
                 const { success, error, response } = formatScriptError(err, errorType, syncName);
 
                 if (activityLogId && writeToDb) {
