@@ -250,6 +250,40 @@ describe('generate function tests', () => {
         await generate(false, true);
     });
 
+    it('Should let a model name have a s at the end', async () => {
+        await init();
+        const data = {
+            integrations: {
+                'demo-github-integration': {
+                    'single-model-return': {
+                        type: 'action',
+                        returns: 'GithubIssues'
+                    }
+                }
+            },
+            models: {
+                GithubIssues: {
+                    owner: 'string',
+                    repo: 'string',
+                    issue_number: 'number',
+                    title: 'string',
+                    author: 'string',
+                    author_id: 'string',
+                    state: 'string',
+                    date_created: 'date',
+                    date_last_modified: 'date',
+                    body: 'string'
+                }
+            }
+        };
+        const yamlData = yaml.dump(data);
+        await fs.promises.writeFile(`${testDirectory}/nango.yaml`, yamlData, 'utf8');
+        await generate(false, true);
+        // get the contents of the model file and verify that the model name is correct
+        const modelFileContents = await fs.promises.readFile(`${testDirectory}/models.ts`, 'utf8');
+        expect(modelFileContents).toContain('export interface GithubIssues');
+    });
+
     it('should allow javascript primitives as a return type with no model', async () => {
         await init();
         const data = {
@@ -335,6 +369,8 @@ describe('generate function tests', () => {
         const { response: config } = await configService.load(path.resolve(__dirname, `./fixtures/nango-yaml/v2/valid`));
         expect(config).toBeDefined();
         const json = fs.readFileSync(path.resolve(__dirname, `./fixtures/nango-yaml/v2/valid/object.json`), 'utf8');
+        console.log('YOOO')
+        console.log(JSON.stringify(config));
         expect(config).toEqual(JSON.parse(json));
     });
 
